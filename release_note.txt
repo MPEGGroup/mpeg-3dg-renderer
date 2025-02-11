@@ -1,0 +1,107 @@
+PccAppRenderer release notes 
+
+v6.5: 
+  - update camera path process:
+    - add fixed points 
+    - create camera path index and preload camera path based on the object bounding box.
+  - update of alignment processes.
+  - update help.
+  - remove TBB and ASSIMP sub libraries.
+  - add Tiny wavefront .obj loader (tinyobjloader) library.  
+  - add software rendering mode.  
+
+v6.4: 
+  - update of the versions used by the sub-libraries.
+  - update of alignment processes.
+  - update glfw callback functions.
+
+v6.3: 
+  - update invisible rendering to create large videos.
+
+v6.2: 
+  - update rig camera position.
+  - add invisible rendering.
+
+v6.1: 
+  - bug fixes.
+  - formatting and cleaning.
+
+v6.0: 
+  - 3D background scene for subjective evaluation.
+  - updage documentation.
+  - formatting and cleaning.
+
+v5.2: 
+  - parallel reading of mesh and point cloud files (folder mode).
+  - addition of scripts to create videos.
+  - formatting and cleaning.
+
+v5.1: 
+   - add Threading Building Blocks (TBB) library.
+   - add multi-threading object loading based on TBB.
+   - add --floor option to add grey box under the displayed objects.
+   
+v5.0: 
+   - Added support for 3D mesh objects (OBJ and PLY):
+      - Added assimp and stb_image libraries to load 3D objects and 2D textures.
+      - Creation of 4 display modes to render 3D meshes in the form of surfaces, points, wireframes or surfaces with gray triangles.
+   - Update OpenGL legaty fonctions to be compatible with MacOs. 
+   - Update readme and documentation files: Interdigital_PointCloud_Renderer_v5.0.pdf.
+
+v4.0: 
+   - update remove duplcate process for multi-color point clouds.
+   - update GLFW dependencies.
+   - add option to play backward the sequences rather than rewind.
+   - update licence texts.
+   - update pdf file: Interdigital PointCloud Renderer_v4.0.pdf.
+
+v3.0: 
+   - manage multi-color point cloud.
+   - display camera rig.
+   - display point cloud with various colors according multi-color modes:
+        - main 
+        - closest
+        - interpolate
+        - forced [0;N]
+   - update pdf file: InterDigital PointCloud Renderer_v3.0.pdf.
+
+v2.0: 
+   - diplay duplicate points.
+   - display metric source versus main (Point, Y, U or V).
+   - display type of the points.
+   - update pdf file: InterDigital PointCloud Renderer_v2.0.pdf.
+   
+v1.03: 
+   - add dropdups option.
+   - update pdf file: InterDigital PointCloud Renderer_v1.3.pdf.
+   
+v1.02: 
+   - use point type for create output video.
+   - update parsing parameter process.
+   - update output video to create interleave rgb 24 bits.
+   - update pdf file: InterDigital PointCloud Renderer_v1.2.pdf.
+   
+v1.01: 
+   - add point size parameter.
+   - add point type parameter.
+   - update loading ply process to display all traces. 
+
+v1.0: 
+   - first mpeg-3dg-pcc version.
+
+Examples:                  
+
+   PccAppRenderer -f Egyptian_mask.ply                                                                                       # Load one ply file.
+   PccAppRenderer -f Egyptian_mask.ply -s -c                                                                                 # Load one ply file and scale+center the points in default viewing bounding box [0;1024]^3.
+   PccAppRenderer -f Egyptian_mask.ply --box=0 -c                                                                            # Load one ply file and center the point in object bounding box [0;Xmax-Xmin][0;Ymax-Ymin][0;Zmax-Zmin].
+   PccAppRenderer -f Egyptian_mask.ply -s -c --size=0.05 --type=0                                                            # Load one ply file and define the size and the type of the points for the rendering process. 
+   PccAppRenderer -d longdress/Ply/ -n 250                                                                                   # Load N ply files from on directory.
+   PccAppRenderer -d longdress/Ply/ -n 250 -b                                                                                # Load N ply files from on directory in binary mode.
+   PccAppRenderer -d longdress/Ply/ -n  50 -b --overlay=1 -x plane_short.txt -o dec -p --type=2 --size=1 --overlay=0         # Create video.
+  
+Read create video with ffmpeg, ffplay and vooya:
+
+   vooay save_20170519_15h04m33s_800x600_8bits_rgb24i.rgb 
+   ffplay -f rawvideo -pix_fmt rgb24 -s 800x600 -i save_20170519_15h04m33s_800x600_8bits_rgb24i.rgb
+   ffmpeg -f rawvideo -pix_fmt rgb24 -s 800x600 -i save_20170519_15h04m33s_800x600_8bits_rgb24i.rgb -vcodec mpeg4      output.mp4 
+   ffmpeg -f rawvideo -pix_fmt rgb24 -s 800x600 -i save_20170519_15h04m33s_800x600_8bits_rgb24i.rgb -vcodec libx264rgb output.mp4 

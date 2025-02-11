@@ -1,0 +1,189 @@
+
+
+
+
+CMAKE_MINIMUM_REQUIRED (VERSION 3.7 )
+
+SET( MYNAME "PccAppRenderer" )
+SET( MYNAME ${MYNAME}${CMAKE_DEBUG_POSTFIX} )
+SET( CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/external/cmake" )
+SET( PCC_RENDERER_VERSION_MAJOR    8 )
+SET( PCC_RENDERER_VERSION_MINOR    0 )
+SET( CMAKE_EXPORT_COMPILE_COMMANDS ON )
+CMAKE_POLICY(SET CMP0048 NEW)
+CMAKE_POLICY(SET CMP0012 NEW)
+
+PROJECT( ${MYNAME} VERSION ${PCC_RENDERER_VERSION_MAJOR}.${PCC_RENDERER_VERSION_MINOR} LANGUAGES C CXX )
+
+OPTION( USE_OPENMP "Use openmp libraries if available" ON )
+
+## COMPILER CMAKE_CXX_FLAGS
+INCLUDE( CheckCXXCompilerFlag )
+CHECK_CXX_COMPILER_FLAG( "-std=c++17" COMPILER_SUPPORTS_CXX17 )
+if (COMPILER_SUPPORTS_CXX17)
+  SET( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17" )
+ELSE ()
+  MESSAGE(STATUS "The compiler ${CMAKE_CXX_COMPILER} has no C++17 support. Please use a different C++ compiler.")
+ENDIF()
+
+## PARAMETERS
+IF( WIN32 )
+  ADD_DEFINITIONS( -DWIN32 )  
+ENDIF()
+IF( MSVC )
+  ADD_DEFINITIONS( -DMSVC )
+  SET( CMAKE_CXX_FLAGS         "${CMAKE_CXX_FLAGS}         /W3 /D_CRT_SECURE_NO_WARNINGS /Wall /EHsc /MT /fp:strict /bigobj /GF /FD /EHsc 
+                                                           /Gy /W3 /MP /nologo /c /TP /errorReport:prompt" ) 
+  SET( CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /DNDEBUG /Ox /Ob2 /Oi /Ot /Oy ")
+  SET( CMAKE_CXX_FLAGS_DEBUG   "${CMAKE_CXX_FLAGS_DEBUG}   /DDEBUG  /Od /Zi ")  
+  SET( CMAKE_C_FLAGS           "${CMAKE_C_FLAGS}           /TC /fp:strict /bigobj /errorReport:prompt /GF /FD /EHsc /MD /Gy /W3 /MP /nologo /c ")
+ELSE()
+  SET( CMAKE_CXX_FLAGS         "${CMAKE_CXX_FLAGS}         -pthread -Wall -Wextra -Wno-unused-function -Wno-unused-result -Wno-format-security -fno-fast-math -fpermissive -D__STDC_CONSTANT_MACROS -D_REENTRANT -DLinux " )
+  SET( CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -DNDEBUG -ftree-vectorize -msse2 -msse3 ")
+  SET( CMAKE_CXX_FLAGS_DEBUG   "${CMAKE_CXX_FLAGS_DEBUG}   -g  -DDEBUG ")
+  IF( APPLE ) 
+    MESSAGE( "APPLE system detected ")
+    SET( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -lz" )    
+    ADD_DEFINITIONS( -DAPPLE )    
+  ELSE()
+    ADD_DEFINITIONS( -lpthread )
+  ENDIF()
+ENDIF()
+#ADD_DEFINITIONS( "-DCMAKE_BUILD_TYPE=${CMAKE_CONFIGURATION_TYPES} -CMAKE_CONFIGURATION_TYPES=${CMAKE_CONFIGURATION_TYPES}  ")
+
+## DEFINE OUTPUT DIRECTORIES
+SET( CMAKE_BINARY_DIR                   ${CMAKE_SOURCE_DIR}     )
+SET( CMAKE_LIBRARY_OUTPUT_DIRECTORY     ${CMAKE_SOURCE_DIR}/lib )
+SET( CMAKE_ARCHIVE_OUTPUT_DIRECTORY     ${CMAKE_SOURCE_DIR}/lib )
+IF( MSVC )
+  SET( CMAKE_RUNTIME_OUTPUT_DIRECTORY   ${CMAKE_BINARY_DIR}/bin/windows/ )
+ELSE()
+  IF( WIN32 )
+    SET( CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin/mingw/${CMAKE_CONFIGURATION_TYPES} )
+  ELSE()
+    SET( CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin/linux/${CMAKE_CONFIGURATION_TYPES} )
+  ENDIF()
+ENDIF()
+
+## GIT COMMIT HASH MACROS
+IF( EXISTS ${CMAKE_SOURCE_DIR}/.git/ )
+  EXECUTE_PROCESS( COMMAND git log -1 --format=%H WORKING_DIRECTORY ${CMAKE_SOURCE_DIR} OUTPUT_VARIABLE GIT_COMMIT_HASH OUTPUT_STRIP_TRAILING_WHITESPACE )
+ELSE()
+  SET( GIT_COMMIT_HASH "UNDEFINED")
+ENDIF()
+CONFIGURE_FILE( ${CMAKE_CURRENT_SOURCE_DIR}/include/PccRendererConfig.h.in
+                ${CMAKE_CURRENT_SOURCE_DIR}/include/PccRendererConfig.h @ONLY)
+
+# CLONE FUNCTION
+FUNCTION( CLONE NAME URL BRANCH )
+  IF( NOT IS_DIRECTORY "${CMAKE_SOURCE_DIR}/external/${NAME}/" OR     
+    NOT EXISTS         "${CMAKE_SOURCE_DIR}/external/${NAME}/CMakeLists.txt" )      
+    MESSAGE( STATUS "git clone: ${NAME} ${URL} ${BRANCH}" )
+    IF( "${BRANCH}" STREQUAL  "" )
+      EXECUTE_PROCESS( COMMAND git clone --depth=1 ${URL} ${CMAKE_SOURCE_DIR}/external/${NAME}/ )
+      MESSAGE( " git clone --depth=1 ${URL} ${CMAKE_SOURCE_DIR}/external/${NAME}/" )
+      ELSE()
+        EXECUTE_PROCESS( COMMAND git clone --depth=1 ${URL} --branch ${BRANCH} ${CMAKE_SOURCE_DIR}/external/${NAME}/ )
+      ENDIF()
+  ELSE()  
+    MESSAGE( STATUS "already cloned: ${NAME} ${URL} ${BRANCH}" )
+  ENDIF()
+ENDFUNCTION()
+
+## CLONE SUB MODULE
+CLONE( glfw     https://github.com/glfw/glfw.git            3.3.5   )
+CLONE( glm      https://github.com/g-truc/glm.git           0.9.9.8 )
+CLONE( tinyply  https://github.com/ddiakopoulos/tinyply.git 2.3.4   )
+
+## GLFW
+SET(ENABLE_GLFW 1 CACHE BOOL "Enable GLFW" )
+IF(ENABLE_GLFW)
+  SET( GLFW_BUILD_EXAMPLES          OFF CACHE INTERNAL "" FORCE )
+  SET( GLFW_BUILD_TESTS             OFF CACHE INTERNAL "" FORCE )
+  SET( GLFW_BUILD_DOCS              OFF CACHE INTERNAL "" FORCE )
+  SET( GLFW_INSTALL                 OFF CACHE INTERNAL "" FORCE )
+  SET( USE_MSVC_RUNTIME_LIBRARY_DLL OFF CACHE INTERNAL "" FORCE )
+  ADD_SUBDIRECTORY( ${CMAKE_SOURCE_DIR}/external/glfw )
+  ADD_DEFINITIONS( -DGLFW_ENABLED )
+  SET( GLFW_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/external/glfw/include )
+  SET( GLAD_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/external/glfw/deps )
+  IF( WIN32 )
+    SET( GLFW_LIBRARIES glfw3 )
+    SET( GLFW_LIBRARY_DIR ${CMAKE_SOURCE_DIR}/lib/${CMAKE_CONFIGURATION_TYPES} )  
+  ELSEIF( APPLE )
+    FIND_LIBRARY( COCOA_LIBRARY     Cocoa     )
+    FIND_LIBRARY( COREVIDEO_LIBRARY CoreVideo )
+    FIND_LIBRARY( IOKIT_LIBRARY     IOKit     )   
+    SET( GLFW_LIBRARIES glfw3 ${COCOA_LIBRARY} ${COREVIDEO_LIBRARY} ${IOKIT_LIBRARY} )
+    SET( GLFW_LIBRARY_DIR ${CMAKE_SOURCE_DIR}/lib )  
+  ELSE()      
+    SET( GLFW_LIBRARIES glfw3 Xxf86vm X11 dl Xi Xrandr Xinerama Xcursor )
+    SET( GLFW_LIBRARY_DIR ${CMAKE_SOURCE_DIR}/lib )  
+  ENDIF()
+ELSE()
+  MESSAGE( FATAL_ERROR "GLFW is requiered " )
+ENDIF()
+
+## Open Multi-Processing (OpenMP)
+
+if( USE_OPENMP )
+  FIND_PACKAGE( OpenMP )
+  IF( OPENMP_FOUND )
+    SET( CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   ${OpenMP_C_FLAGS}"   )
+    SET( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}" )
+  else ()
+    MESSAGE( FATAL_ERROR "Package OpenMP required, but not found!, please install apt install libomp-dev libomp5 or brew install libomp-dev libomp5" )  
+  ENDIF()
+ENDIF()
+
+## SET SOURCE FILES
+FILE( GLOB SRC 
+  ${CMAKE_SOURCE_DIR}/include/*.h 
+  ${CMAKE_SOURCE_DIR}/source/*.cpp 
+  ${CMAKE_SOURCE_DIR}/external/Cimg/CImg.h 
+  ${CMAKE_SOURCE_DIR}/external/tiny-obj-loader/tiny_obj_loader.h 
+  ${CMAKE_SOURCE_DIR}/external/glfw/deps/glad_gl.c
+  ${CMAKE_SOURCE_DIR}/external/program-options-lite/*
+  ${CMAKE_SOURCE_DIR}/external/tinyply/source/tinyply.cpp )
+  
+MESSAGE( STATUS "CMAKE_BUILD_TYPE          = " ${CMAKE_BUILD_TYPE} )
+MESSAGE( STATUS "CMAKE_CONFIGURATION_TYPES = " ${CMAKE_CONFIGURATION_TYPES} )
+MESSAGE( STATUS "CMAKE_CURRENT_SOURCE_DIR  = " ${CMAKE_CURRENT_SOURCE_DIR} )
+MESSAGE( STATUS "GLFW_LIBRARY_DIR          = " ${GLFW_LIBRARY_DIR} )
+MESSAGE( STATUS "GLFW_LIBRARIES            = " ${GLFW_LIBRARIES} )
+MESSAGE( STATUS "CMAKE_CXX_FLAGS           = " ${CMAKE_CXX_FLAGS} )
+MESSAGE( STATUS "CMAKE_CXX_FLAGS_RELEASE   = " ${CMAKE_CXX_FLAGS_RELEASE} )
+MESSAGE( STATUS "CMAKE_CXX_FLAGS_DEBUG     = " ${CMAKE_CXX_FLAGS_DEBUG} )
+
+INCLUDE_DIRECTORIES( 
+  ${CMAKE_SOURCE_DIR}/include/ 
+  ${OPENGL_INCLUDE_DIRS} 
+  ${GLFW_INCLUDE_DIR} 
+  ${GLAD_INCLUDE_DIR}  
+  ${CMAKE_SOURCE_DIR}/external/nanoflann 
+  ${CMAKE_SOURCE_DIR}/external/program-options-lite 
+  ${CMAKE_SOURCE_DIR}/external/tiny-obj-loader
+  ${CMAKE_SOURCE_DIR}/external/glm
+  ${CMAKE_SOURCE_DIR}/external/tinyply/source )  
+
+## CLANG FORMAT
+INCLUDE( external/cmake/clang.cmake )
+  
+## INCLUDE 
+INCLUDE_DIRECTORIES( ${CMAKE_SOURCE_DIR}/external/stb )
+IF ( APPLE )
+  # Note: For MacOs, please install libjpeg, libpng and libomp with the following command line: brew install libpng jpeg libomp
+  FIND_PACKAGE( jpeg   REQUIRED )
+  FIND_PACKAGE( png    REQUIRED )
+  LINK_LIBRARIES( ${JPEG_LIBRARIES} ${PNG_LIBRARIES} )
+  if( USE_OPENMP )
+    FIND_PACKAGE( OpenMP REQUIRED )
+    LINK_LIBRARIES( ${OpenMP_CXX_LIBRARIES} )
+  ENDIF()
+ENDIF()
+
+LINK_DIRECTORIES( ${CMAKE_LIBRARY_OUTPUT_DIRECTORY} ${GLFW_LIBRARY_DIR} )
+ADD_EXECUTABLE( ${MYNAME} ${SRC} )
+TARGET_LINK_LIBRARIES( ${MYNAME} ${GLFW_LIBRARIES} )
+INSTALL( TARGETS ${MYNAME} DESTINATION bin )
+
