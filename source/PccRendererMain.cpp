@@ -55,7 +55,7 @@ int main( int argc, char* argv[] ) {
 
   // Read objects, source and background scene
   readSequence( params, eSequence );
-  readScene( params, eSequence );
+  readScene( params, eScene );
 
   // Create window
   Window eWindow( std::string( "PccAppRenderer - MPEG 3DG Renderer by InterDigital" ), params );
